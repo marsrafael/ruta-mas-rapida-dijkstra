@@ -1,0 +1,49 @@
+.form-btn {
+    margin-top: 12px;
+}
+
+.login_form {
+    max-width: 380px;
+    margin: auto;
+    width: 100%;
+    padding: 24px 24px;
+    background-color: var(--background);
+    border-radius: 16px;
+    border-width: 1px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+}
+
+.logo_container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 80px;
+    opacity: 0.5;
+}
+
+.logo {
+    height: 80px;
+    object-fit: contain;
+    border-radius: var(--radius);
+}
+
+.form_title {
+    margin-bottom: 12px;
+    font-size: 24px;
+}

@@ -1,0 +1,21 @@
+.form_grafo{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+.form_grafo > button {
+    width: fit-content;
+}
+
+.form_grafo .container {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    width: 100%;
+}
+
+h1 {
+    margin-bottom: 24px;
+    font-size: 32px;
+}

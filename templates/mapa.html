@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title> Empieza tu ruta - {{ diresa }} | M.A.E </title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='image/logo.png') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/index.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/mapa.css') }}"
+    />
+</head>
+<body class="__flex">
+    <header>
+      <nav class="header_container">
+        <div
+          style="width: 120px; display: flex; align-items: center; gap: 12px"
+        >
+          <img
+            class="logo"
+            src="{{ url_for('static', filename='image/logo.png') }}"
+          />
+          <span style="font-weight: 600; font-size: 18px"
+            >Hola, {{ user }}</span
+          >
+        </div>
+        <div
+          style="
+            width: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+          "
+        >
+          <a href="/logout" class="header_btn"> Cerrar Sesión </a>
+        </div>
+      </nav> 
+    </header>
+
+    <main style="position: relative;flex-grow: 1;">
+        <h1 class="heading">Mapa de {{ diresa }}</h1>
+        <div id="map" class="map"></div>
+        <div class="action">
+            <button class="btn_hide" onclick="toggle('form_content')">
+                Ocultar/Mostrar
+            </button>
+            <div id="form_content" class="action_content">
+                {% if not ruta %}
+                <form action="/ruta" method="post">
+                    <input type="hidden" name="coords" value='{{ coords | safe }}'>
+                    <input type="hidden" name="nodos" value='{{ nodos_nombres | tojson | safe }}'>
+                    <input type="hidden" name="edges" value='{{ edges | tojson | safe }}'>
+                    <input type="hidden" name="tipo_ruta" value="{{ tipo_ruta }}">
+
+                    <label for="inicio">Nodo de inicio:</label>
+                    <select name="inicio" required>
+                        {% for n in nodos_nombres %}
+                            <option value="{{ n }}">{{ n }}</option>
+                        {% endfor %}
+                    </select><br><br>
+
+                    <label for="fin">Nodo de destino:</label>
+                    <select name="fin" required>
+                        {% for n in nodos_nombres %}
+                            <option value="{{ n }}">{{ n }}</option>
+                        {% endfor %}
+                    </select><br><br>
+
+                    {% if tipo_ruta == "algunos" %}
+                        <label>Selecciona nodos intermedios:</label><br>
+                        {% for n in nodos_nombres %}
+                            <input type="checkbox" name="intermedios" value="{{ n }}"> {{ n }}<br>
+                        {% endfor %}
+                        <br>
+                    {% endif %}
+
+                    <button type="submit" class="primary">
+                        Calcular ruta
+                    </button>
+
+                </form>
+                {% else %}
+                    <h2 style="margin-bottom: 12px;">Ruta calculada ({{ tipo_ruta }}) de <strong>{{ inicio }}</strong> a <strong>{{ fin }}</strong></h2>
+                    <div style="display: flex;flex-direction: column;gap:2px">
+                        {% for x_ruta in ruta %}
+                            <span style="display: flex;align-items: center;gap:6px">
+                                <span class="circle " style="width: 26px;height: 26px;background-color: rgba(0, 153, 255, .6);color: #fff"> 
+                                    {{ loop.index }} 
+                                </span>
+                                {{ x_ruta }}
+                            </span>
+                            {% if not loop.last %}
+                                <div style="width: 2px; height: 20px;background-color: rgba(0, 153, 255, .6);"></div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+      <span> M.A.E - 2025 </span>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/toggle.js') }}"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const nodos = {{ nodos | tojson | safe }};
+        const coords = {{ coords | safe }};
+        const edges = {{ edges | tojson | safe }};
+        const ruta = {{ ruta | tojson | safe if ruta else 'null' }};
+
+        const map = L.map('map').setView([nodos[0].lat, nodos[0].lon], 8);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        nodos.forEach(n => {
+            L.marker([n.lat, n.lon]).addTo(map).bindPopup(n.nombre);
+        });
+
+        edges.forEach(edge => {
+            const [a, b] = edge;
+            const latlngs = [
+                [coords[a][0], coords[a][1]],
+                [coords[b][0], coords[b][1]]
+            ];
+            L.polyline(latlngs, {
+                color: 'blue',
+                weight: 1.5,
+                opacity: 0.5,
+                dashArray: '3'
+            }).addTo(map);
+        });
+
+        // Función para crear ruta real con todos los nodos
+        async function createCompleteRoute(rutaNodos) {
+            if (!rutaNodos || rutaNodos.length < 2) return;
+            
+            try {
+                // Convertir todos los nodos a coordenadas para OSRM
+                const waypoints = rutaNodos.map(nombreNodo => {
+                    const coord = coords[nombreNodo];
+                    return `${coord[1]},${coord[0]}`; // lng,lat para OSRM
+                }).join(';');
+                
+                const url = `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson`;
+                
+                console.log('Calculando ruta completa con OSRM...');
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const routeCoordinates = route.geometry.coordinates;
+                    const latlngs = routeCoordinates.map(coord => [coord[1], coord[0]]);
+                    
+                    // Dibujar la ruta completa siguiendo carreteras
+                    L.polyline(latlngs, {
+                        color: 'red',
+                        weight: 4,
+                        opacity: 0.9
+                    }).addTo(map);
+                    
+                    console.log(`Ruta completa: ${(route.distance / 1000).toFixed(2)} km, ${Math.round(route.duration / 60)} min`);
+                } else {
+                    console.log('OSRM no pudo calcular la ruta, usando líneas rectas');
+                    drawFallbackRoute(rutaNodos);
+                }
+            } catch (error) {
+                console.log('Error con OSRM:', error);
+                drawFallbackRoute(rutaNodos);
+            }
+        }
+
+        // Función fallback con líneas rectas
+        function drawFallbackRoute(rutaNodos) {
+            for (let i = 0; i < rutaNodos.length - 1; i++) {
+                const latlngs = [
+                    [coords[rutaNodos[i]][0], coords[rutaNodos[i]][1]],
+                    [coords[rutaNodos[i+1]][0], coords[rutaNodos[i+1]][1]]
+                ];
+                L.polyline(latlngs, {
+                    color: 'red',
+                    weight: 4,
+                    opacity: 0.9,
+                    dashArray: '5, 5' // Línea punteada para indicar que es fallback
+                }).addTo(map);
+            }
+            console.log('Usando rutas directas (sin carreteras disponibles)');
+        }
+
+        // Crear la ruta completa
+        if (ruta) {
+            createCompleteRoute(ruta);
+        }
+    </script>
+</body>
+</html>

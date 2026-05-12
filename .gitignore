@@ -1,0 +1,23 @@
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VSCode
+.vscode/
+
+# Environment files
+.env
+
+# System files
+Thumbs.db
+.DS_Store
+
+# Data files (large or sensitive)
+DataSetVersiónFinal.xlsx
+usuarios.xlsx
+
+# Others
+.idea/
